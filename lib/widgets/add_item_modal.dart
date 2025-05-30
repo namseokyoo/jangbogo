@@ -97,30 +97,31 @@ class _AddItemModalState extends State<AddItemModal>
 
   Future<void> _startListening() async {
     try {
+      print('🎤 AddItemModal: 음성인식 시작 시도');
+
       // 이미 음성인식이 진행 중이면 먼저 중지
       if (_isListening) {
-        print('AddItemModal: 이미 음성인식이 진행 중입니다. 먼저 중지합니다.');
+        print('⚠️ AddItemModal: 이미 음성인식이 진행 중입니다. 먼저 중지합니다.');
         _stopListening();
-        await Future.delayed(const Duration(milliseconds: 300));
+        await Future.delayed(const Duration(milliseconds: 500));
       }
 
-      // 음성 서비스 초기화 확인
-      if (!_speechService.isInitialized) {
-        await _initializeSpeech();
-      }
-
+      // 음성 서비스 사용 가능 여부 확인
       final isAvailable = await _speechService.isAvailable();
       if (!isAvailable) {
-        _showErrorSnackBar('음성 인식을 사용할 수 없습니다.\n브라우저에서 마이크 권한을 허용해주세요.');
+        _showErrorSnackBar(
+            '🚫 음성 인식을 사용할 수 없습니다.\n\n브라우저 설정을 확인해주세요:\n• 마이크 권한 허용\n• HTTPS 연결 확인\n• 브라우저 호환성 확인');
         return;
       }
 
+      // UI 상태 업데이트
       setState(() {
         _isListening = true;
       });
 
       _pulseController.repeat(reverse: true);
 
+      // 음성인식 시작
       await _speechService.startListening(
         onResult: (result) {
           if (result.isNotEmpty && mounted) {
@@ -141,9 +142,28 @@ class _AddItemModalState extends State<AddItemModal>
           }
         },
       );
+
+      print('✅ AddItemModal: 음성인식 시작 성공');
     } catch (e) {
-      print('AddItemModal: 음성인식 시작 실패: $e');
-      _showErrorSnackBar('음성 인식 중 오류가 발생했습니다.\n잠시 후 다시 시도해주세요.');
+      print('🚨 AddItemModal: 음성인식 시작 실패: $e');
+
+      // 에러 메시지 개선
+      String errorMessage = '음성 인식 중 오류가 발생했습니다';
+
+      if (e.toString().contains('마이크 권한')) {
+        errorMessage =
+            '🎤 마이크 권한이 필요합니다\n\n브라우저 주소창 옆의 마이크 아이콘을 클릭하여\n마이크 사용을 허용해주세요';
+      } else if (e.toString().contains('네트워크')) {
+        errorMessage = '🌐 네트워크 연결을 확인해주세요\n\n음성 인식은 인터넷 연결이 필요합니다';
+      } else if (e.toString().contains('잠시 후')) {
+        errorMessage = '⏰ 잠시 후 다시 시도해주세요\n\n음성 인식 서비스가 일시적으로\n사용 중일 수 있습니다';
+      } else {
+        errorMessage =
+            '🚫 음성 인식을 사용할 수 없습니다\n\n• 마이크가 연결되어 있는지 확인\n• 다른 앱에서 마이크를 사용 중인지 확인\n• 브라우저를 새로고침 후 재시도';
+      }
+
+      _showErrorSnackBar(errorMessage);
+
       if (mounted) {
         setState(() {
           _isListening = false;
