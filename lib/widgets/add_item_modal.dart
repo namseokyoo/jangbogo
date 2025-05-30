@@ -97,6 +97,13 @@ class _AddItemModalState extends State<AddItemModal>
 
   Future<void> _startListening() async {
     try {
+      // 이미 음성인식이 진행 중이면 먼저 중지
+      if (_isListening) {
+        print('AddItemModal: 이미 음성인식이 진행 중입니다. 먼저 중지합니다.');
+        _stopListening();
+        await Future.delayed(const Duration(milliseconds: 300));
+      }
+
       // 음성 서비스 초기화 확인
       if (!_speechService.isInitialized) {
         await _initializeSpeech();
@@ -135,7 +142,8 @@ class _AddItemModalState extends State<AddItemModal>
         },
       );
     } catch (e) {
-      _showErrorSnackBar('음성 인식 중 오류가 발생했습니다:\n$e');
+      print('AddItemModal: 음성인식 시작 실패: $e');
+      _showErrorSnackBar('음성 인식 중 오류가 발생했습니다.\n잠시 후 다시 시도해주세요.');
       if (mounted) {
         setState(() {
           _isListening = false;
@@ -147,13 +155,22 @@ class _AddItemModalState extends State<AddItemModal>
   }
 
   void _stopListening() {
-    _speechService.stopListening();
-    setState(() {
-      _isListening = false;
-      _soundLevel = 0.0;
-    });
+    print('AddItemModal: 음성인식 중지 시작');
+    try {
+      _speechService.stopListening();
+    } catch (e) {
+      print('AddItemModal: 음성인식 중지 중 오류: $e');
+    }
+
+    if (mounted) {
+      setState(() {
+        _isListening = false;
+        _soundLevel = 0.0;
+      });
+    }
     _pulseController.stop();
     _soundLevelController.reset();
+    print('AddItemModal: 음성인식 중지 완료');
   }
 
   void _showErrorSnackBar(String message) {

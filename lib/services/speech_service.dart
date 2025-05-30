@@ -100,10 +100,12 @@ class SpeechService {
       }
     }
 
+    // 이미 음성인식이 진행 중이면 에러 방지
     if (_isListening) {
-      await stopListening();
-      // 약간의 지연을 둬서 이전 세션이 완전히 종료되도록 함
-      await Future.delayed(const Duration(milliseconds: 300));
+      print('음성 인식이 이미 진행 중입니다. 기존 세션을 먼저 종료합니다.');
+      await forceStop();
+      // 웹에서는 더 긴 지연이 필요할 수 있음
+      await Future.delayed(const Duration(milliseconds: 500));
     }
 
     // 음성 레벨 콜백 설정
@@ -146,6 +148,8 @@ class SpeechService {
     } catch (e) {
       print('음성 인식 시작 실패: $e');
       _isListening = false;
+      // 에러 발생 시 강제로 정리
+      await forceStop();
       throw Exception('음성 인식을 시작할 수 없습니다: $e');
     }
   }
@@ -154,7 +158,11 @@ class SpeechService {
   Future<void> stopListening() async {
     if (_isListening) {
       print('음성 인식 중지...');
-      await _speechToText.stop();
+      try {
+        await _speechToText.stop();
+      } catch (e) {
+        print('음성 인식 중지 중 오류: $e');
+      }
       _isListening = false;
     }
   }
@@ -163,10 +171,32 @@ class SpeechService {
   Future<void> cancelListening() async {
     if (_isListening) {
       print('음성 인식 취소...');
-      await _speechToText.cancel();
+      try {
+        await _speechToText.cancel();
+      } catch (e) {
+        print('음성 인식 취소 중 오류: $e');
+      }
       _isListening = false;
       _lastWords = '';
       _confidenceLevel = 0.0;
+    }
+  }
+
+  // 강제 정리 (웹에서 상태 불일치 해결용)
+  Future<void> forceStop() async {
+    print('음성 인식 강제 정리...');
+    try {
+      // cancel과 stop을 모두 시도
+      await _speechToText.cancel();
+      await Future.delayed(const Duration(milliseconds: 100));
+      await _speechToText.stop();
+    } catch (e) {
+      print('강제 정리 중 오류 (무시됨): $e');
+    } finally {
+      _isListening = false;
+      _lastWords = '';
+      _confidenceLevel = 0.0;
+      _soundLevel = 0.0;
     }
   }
 
