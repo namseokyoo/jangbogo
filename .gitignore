@@ -55,5 +55,6 @@ linux/
 # macOS related
 macos/
 
-# Development log (contains sensitive development information)
+# Development logs (contains sensitive development information)
 dev_log.md
+development_log.md
