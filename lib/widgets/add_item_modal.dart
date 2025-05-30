@@ -87,44 +87,60 @@ class _AddItemModalState extends State<AddItemModal>
   }
 
   Future<void> _initializeSpeech() async {
-    await _speechService.initialize();
+    try {
+      await _speechService.initialize();
+      print('AddItemModal: 음성 서비스 초기화 완료');
+    } catch (e) {
+      print('AddItemModal: 음성 서비스 초기화 실패: $e');
+    }
   }
 
   Future<void> _startListening() async {
-    final isAvailable = await _speechService.isAvailable();
-    if (!isAvailable) {
-      _showErrorSnackBar('음성 인식을 사용할 수 없습니다.');
-      return;
-    }
-
-    setState(() {
-      _isListening = true;
-    });
-
-    _pulseController.repeat(reverse: true);
-
     try {
+      // 음성 서비스 초기화 확인
+      if (!_speechService.isInitialized) {
+        await _initializeSpeech();
+      }
+
+      final isAvailable = await _speechService.isAvailable();
+      if (!isAvailable) {
+        _showErrorSnackBar('음성 인식을 사용할 수 없습니다.\n브라우저에서 마이크 권한을 허용해주세요.');
+        return;
+      }
+
+      setState(() {
+        _isListening = true;
+      });
+
+      _pulseController.repeat(reverse: true);
+
       await _speechService.startListening(
         onResult: (result) {
-          if (result.isNotEmpty) {
+          if (result.isNotEmpty && mounted) {
             setState(() {
               _textController.text = result;
             });
           }
         },
         onSoundLevel: (level) {
-          setState(() {
-            _soundLevel = level;
-          });
-          // 음성 레벨에 따른 애니메이션
-          _soundLevelController.animateTo(level.clamp(0.0, 1.0));
+          if (mounted) {
+            setState(() {
+              _soundLevel = level;
+            });
+            // 음성 레벨에 따른 애니메이션 (0.0 ~ 1.0 범위로 정규화)
+            final normalizedLevel =
+                (level + 2.0) / 4.0; // -2.0 ~ 2.0 범위를 0.0 ~ 1.0으로 변환
+            _soundLevelController.animateTo(normalizedLevel.clamp(0.0, 1.0));
+          }
         },
       );
     } catch (e) {
-      _showErrorSnackBar('음성 인식 중 오류가 발생했습니다: $e');
-      setState(() {
-        _isListening = false;
-      });
+      _showErrorSnackBar('음성 인식 중 오류가 발생했습니다:\n$e');
+      if (mounted) {
+        setState(() {
+          _isListening = false;
+        });
+      }
       _pulseController.stop();
       _soundLevelController.reset();
     }
@@ -183,19 +199,16 @@ class _AddItemModalState extends State<AddItemModal>
       for (final itemName in itemNames) {
         await provider.addItem(
           itemName.trim(),
-          notes:
-              _notesController.text.trim().isEmpty
-                  ? null
-                  : _notesController.text.trim(),
+          notes: _notesController.text.trim().isEmpty
+              ? null
+              : _notesController.text.trim(),
           category: _selectedCategory,
-          price:
-              _priceController.text.trim().isEmpty
-                  ? null
-                  : double.tryParse(_priceController.text.trim()),
-          quantity:
-              _quantityController.text.trim().isEmpty
-                  ? 1
-                  : int.tryParse(_quantityController.text.trim()) ?? 1,
+          price: _priceController.text.trim().isEmpty
+              ? null
+              : double.tryParse(_priceController.text.trim()),
+          quantity: _quantityController.text.trim().isEmpty
+              ? 1
+              : int.tryParse(_quantityController.text.trim()) ?? 1,
         );
       }
 
@@ -253,9 +266,9 @@ class _AddItemModalState extends State<AddItemModal>
                   Text(
                     '아이템 추가',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.primary,
-                    ),
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primary,
+                        ),
                   ),
                   const Spacer(),
                   IconButton(
@@ -332,10 +345,9 @@ class _AddItemModalState extends State<AddItemModal>
                                   width: 4,
                                   height: 20 + (index * 5),
                                   decoration: BoxDecoration(
-                                    color:
-                                        _soundLevel > (index * 0.2)
-                                            ? AppTheme.error
-                                            : AppTheme.grey300,
+                                    color: _soundLevel > (index * 0.2)
+                                        ? AppTheme.error
+                                        : AppTheme.grey300,
                                     borderRadius: BorderRadius.circular(2),
                                   ),
                                 );
@@ -351,8 +363,8 @@ class _AddItemModalState extends State<AddItemModal>
                     Text(
                       '아이템 이름',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                            fontWeight: FontWeight.w600,
+                          ),
                     ),
                     const SizedBox(height: 8),
                     TextField(
@@ -363,10 +375,9 @@ class _AddItemModalState extends State<AddItemModal>
                         suffixIcon: IconButton(
                           icon: Icon(
                             _isListening ? Icons.stop : Icons.mic,
-                            color:
-                                _isListening
-                                    ? AppTheme.error
-                                    : AppTheme.secondary,
+                            color: _isListening
+                                ? AppTheme.error
+                                : AppTheme.secondary,
                           ),
                           onPressed:
                               _isListening ? _stopListening : _startListening,
@@ -383,8 +394,8 @@ class _AddItemModalState extends State<AddItemModal>
                     Text(
                       '카테고리',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                            fontWeight: FontWeight.w600,
+                          ),
                     ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
@@ -395,13 +406,12 @@ class _AddItemModalState extends State<AddItemModal>
                           vertical: 12,
                         ),
                       ),
-                      items:
-                          _categories.map((category) {
-                            return DropdownMenuItem(
-                              value: category,
-                              child: Text(category),
-                            );
-                          }).toList(),
+                      items: _categories.map((category) {
+                        return DropdownMenuItem(
+                          value: category,
+                          child: Text(category),
+                        );
+                      }).toList(),
                       onChanged: (value) {
                         if (value != null) {
                           setState(() {
@@ -438,7 +448,9 @@ class _AddItemModalState extends State<AddItemModal>
                       // 메모
                       Text(
                         '메모',
-                        style: Theme.of(context).textTheme.titleMedium
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleMedium
                             ?.copyWith(fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(height: 8),
@@ -459,7 +471,9 @@ class _AddItemModalState extends State<AddItemModal>
                               children: [
                                 Text(
                                   '가격',
-                                  style: Theme.of(context).textTheme.titleMedium
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
                                       ?.copyWith(fontWeight: FontWeight.w600),
                                 ),
                                 const SizedBox(height: 8),
@@ -481,7 +495,9 @@ class _AddItemModalState extends State<AddItemModal>
                               children: [
                                 Text(
                                   '수량',
-                                  style: Theme.of(context).textTheme.titleMedium
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
                                       ?.copyWith(fontWeight: FontWeight.w600),
                                 ),
                                 const SizedBox(height: 8),
@@ -517,9 +533,9 @@ class _AddItemModalState extends State<AddItemModal>
                         style: Theme.of(
                           context,
                         ).textTheme.titleMedium?.copyWith(
-                          color: AppTheme.white,
-                          fontWeight: FontWeight.bold,
-                        ),
+                              color: AppTheme.white,
+                              fontWeight: FontWeight.bold,
+                            ),
                       ),
                     ),
                   ],
