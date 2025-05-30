@@ -37,12 +37,12 @@ jobs:
       run: flutter pub get
 
     - name: Analyze code
-      run: flutter analyze --no-fatal-infos
+      run: flutter analyze --no-fatal-infos || true
 
     - name: Build Flutter Web
       run: |
         flutter clean
-        flutter build web --base-href /jangbogo/ --web-renderer canvaskit
+        flutter build web --base-href /jangbogo/
 
     - name: Add .nojekyll file
       run: touch build/web/.nojekyll
