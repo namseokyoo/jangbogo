@@ -28,7 +28,7 @@ class DatabaseService {
   }
 
   Future<Database> _initDatabase() async {
-    String path = join(await getDatabasesPath(), 'janbogo.db');
+    String path = join(await getDatabasesPath(), 'jangbogo.db');
 
     return await openDatabase(
       path,

@@ -5,11 +5,11 @@ import 'screens/home_screen.dart';
 import 'utils/app_theme.dart';
 
 void main() {
-  runApp(const JanbogoApp());
+  runApp(const JangbogoApp());
 }
 
-class JanbogoApp extends StatelessWidget {
-  const JanbogoApp({super.key});
+class JangbogoApp extends StatelessWidget {
+  const JangbogoApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +18,7 @@ class JanbogoApp extends StatelessWidget {
         ChangeNotifierProvider(create: (context) => ShoppingProvider()),
       ],
       child: MaterialApp(
-        title: '잔보고',
+        title: '장보고왔다',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
         home: const HomeScreen(),

@@ -1,4 +1,4 @@
-# 잔보고 (Janbogo) 🛒
+# 장보고왔다 (Jangbogo) 🛒
 
 > 똑똑한 구매 목록 관리 서비스
 
@@ -35,7 +35,7 @@ Flutter로 개발된 현대적이고 직관적인 구매 목록 관리 앱입니
 ## 🚀 데모
 
 ### 라이브 데모
-👉 **[https://namseokyoo.github.io/janbogo](https://namseokyoo.github.io/janbogo)** (곧 배포 예정)
+👉 **[https://namseokyoo.github.io/jangbogo](https://namseokyoo.github.io/jangbogo)** (곧 배포 예정)
 
 ### 스크린샷
 *스크린샷 추가 예정*
@@ -74,8 +74,8 @@ Flutter로 개발된 현대적이고 직관적인 구매 목록 관리 앱입니
 flutter --version
 
 # 프로젝트 클론
-git clone https://github.com/namseokyoo/janbogo.git
-cd janbogo
+git clone https://github.com/namseokyoo/jangbogo.git
+cd jangbogo
 
 # 의존성 설치
 flutter pub get
@@ -119,8 +119,8 @@ lib/
 ## 📞 연락처
 
 **개발자**: namseokyoo  
-**프로젝트 링크**: [https://github.com/namseokyoo/janbogo](https://github.com/namseokyoo/janbogo)
+**프로젝트 링크**: [https://github.com/namseokyoo/jangbogo](https://github.com/namseokyoo/jangbogo)
 
 ---
 
-*쇼핑이 더 즐거워지는 그 순간, 잔보고와 함께하세요! 🛒✨*
+*쇼핑이 더 즐거워지는 그 순간, 장보고왔다와 함께하세요! 🛒✨*

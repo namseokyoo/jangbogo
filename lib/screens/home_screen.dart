@@ -55,6 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
       floatingActionButton: const CustomFloatingActionButtons(),
       floatingActionButtonLocation: FloatingActionButtonLocation.endDocked,
       bottomNavigationBar: _buildBottomAppBar(),
+      appBar: AppBar(title: Text('장보고왔다')),
     );
   }
 
@@ -90,7 +91,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     Text(
-                      '잔보고',
+                      '장보고왔다',
                       style: Theme.of(
                         context,
                       ).textTheme.headlineLarge?.copyWith(
