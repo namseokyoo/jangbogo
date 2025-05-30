@@ -7,6 +7,11 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
 
     steps:
     - name: Checkout
@@ -18,11 +23,29 @@ jobs:
         flutter-version: '3.24.3'
         channel: 'stable'
 
+    - name: Cache Flutter dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.pub-cache
+          ~/.flutter-cache
+        key: ${{ runner.os }}-flutter-${{ hashFiles('**/pubspec.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-flutter-
+
     - name: Install dependencies
       run: flutter pub get
 
+    - name: Analyze code
+      run: flutter analyze --no-fatal-infos
+
     - name: Build Flutter Web
-      run: flutter build web --base-href /jangbogo/
+      run: |
+        flutter clean
+        flutter build web --base-href /jangbogo/ --web-renderer canvaskit
+
+    - name: Add .nojekyll file
+      run: touch build/web/.nojekyll
 
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3

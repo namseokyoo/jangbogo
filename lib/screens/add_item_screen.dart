@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../providers/shopping_provider.dart';
 import '../services/speech_service.dart';
 import '../utils/app_theme.dart';
-import '../models/shopping_item.dart';
 
 class AddItemScreen extends StatefulWidget {
   final bool initialVoiceMode;

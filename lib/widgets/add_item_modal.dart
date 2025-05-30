@@ -207,32 +207,13 @@ class _AddItemModalState extends State<AddItemModal>
       _priceController.clear();
       _quantityController.clear();
 
-      // 모달 닫기
-      Navigator.of(context).pop();
+      // 모달 닫기 (mounted 체크 추가)
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
     } catch (e) {
       _showErrorSnackBar('아이템 추가 중 오류가 발생했습니다: $e');
     }
-  }
-
-  Widget _buildSoundLevelIndicator() {
-    return AnimatedBuilder(
-      animation: _soundLevelAnimation,
-      builder: (context, child) {
-        return Container(
-          width: 4,
-          height: 20,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(2),
-            gradient: LinearGradient(
-              begin: Alignment.bottomCenter,
-              end: Alignment.topCenter,
-              colors: [AppTheme.secondary, AppTheme.error],
-              stops: [0.0, _soundLevelAnimation.value],
-            ),
-          ),
-        );
-      },
-    );
   }
 
   @override
