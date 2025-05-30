@@ -6,8 +6,8 @@ import '../widgets/shopping_item_tile.dart';
 import '../widgets/custom_floating_action_buttons.dart';
 import '../widgets/filter_bar.dart';
 import '../widgets/stats_card.dart';
+import '../widgets/add_item_modal.dart';
 import '../utils/app_theme.dart';
-import 'add_item_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -281,7 +281,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 32),
           ElevatedButton.icon(
-            onPressed: () => _navigateToAddItem(context),
+            onPressed: () => _onAddItem(),
             icon: const Icon(Icons.add),
             label: const Text('아이템 추가하기'),
             style: ElevatedButton.styleFrom(
@@ -322,10 +322,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _navigateToAddItem(BuildContext context) {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (context) => const AddItemScreen()));
+  void _onAddItem() {
+    showDialog(context: context, builder: (context) => const AddItemModal());
   }
 
   void _showDeleteConfirmation(BuildContext context, String itemId) {

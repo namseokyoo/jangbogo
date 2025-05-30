@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../screens/add_item_screen.dart';
 import '../utils/app_theme.dart';
+import '../widgets/add_item_modal.dart';
 
 class CustomFloatingActionButtons extends StatefulWidget {
   const CustomFloatingActionButtons({super.key});
@@ -12,11 +12,10 @@ class CustomFloatingActionButtons extends StatefulWidget {
 
 class _CustomFloatingActionButtonsState
     extends State<CustomFloatingActionButtons>
-    with TickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
   bool _isExpanded = false;
   late AnimationController _animationController;
-  late Animation<double> _expandAnimation;
-  late Animation<double> _rotateAnimation;
+  late Animation<double> _animation;
 
   @override
   void initState() {
@@ -25,12 +24,9 @@ class _CustomFloatingActionButtonsState
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    _expandAnimation = CurvedAnimation(
+    _animation = CurvedAnimation(
       parent: _animationController,
       curve: Curves.easeInOut,
-    );
-    _rotateAnimation = Tween<double>(begin: 0.0, end: 0.75).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
   }
 
@@ -40,26 +36,25 @@ class _CustomFloatingActionButtonsState
     super.dispose();
   }
 
-  void _toggle() {
+  void _toggleExpanded() {
     setState(() {
       _isExpanded = !_isExpanded;
-      if (_isExpanded) {
-        _animationController.forward();
-      } else {
-        _animationController.reverse();
-      }
     });
+    if (_isExpanded) {
+      _animationController.forward();
+    } else {
+      _animationController.reverse();
+    }
   }
 
   void _navigateToAddItem({bool useVoice = false}) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => AddItemScreen(initialVoiceMode: useVoice),
-      ),
-    );
+    // 모달이 열릴 때 FAB 닫기
     if (_isExpanded) {
-      _toggle();
+      _toggleExpanded();
     }
+
+    // 모달 표시
+    showDialog(context: context, builder: (context) => const AddItemModal());
   }
 
   @override
@@ -69,7 +64,7 @@ class _CustomFloatingActionButtonsState
       children: [
         // 음성 입력 버튼
         ScaleTransition(
-          scale: _expandAnimation,
+          scale: _animation,
           child: Container(
             margin: const EdgeInsets.only(bottom: 16),
             child: FloatingActionButton(
@@ -96,7 +91,7 @@ class _CustomFloatingActionButtonsState
         ),
         // 텍스트 입력 버튼
         ScaleTransition(
-          scale: _expandAnimation,
+          scale: _animation,
           child: Container(
             margin: const EdgeInsets.only(bottom: 16),
             child: FloatingActionButton(
@@ -124,31 +119,28 @@ class _CustomFloatingActionButtonsState
         // 메인 버튼
         FloatingActionButton(
           heroTag: "main_fab",
-          onPressed: _toggle,
+          onPressed: _toggleExpanded,
           backgroundColor: AppTheme.primaryPastel,
           elevation: 12,
           child: AnimatedBuilder(
-            animation: _rotateAnimation,
+            animation: _animation,
             builder: (context, child) {
-              return Transform.rotate(
-                angle: _rotateAnimation.value * 2 * 3.14159,
-                child: Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        AppTheme.primaryPastel,
-                        AppTheme.primaryPastel.withOpacity(0.8),
-                      ],
-                    ),
+              return Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppTheme.primaryPastel,
+                      AppTheme.primaryPastel.withOpacity(0.8),
+                    ],
                   ),
-                  child: Icon(
-                    _isExpanded ? Icons.close : Icons.add,
-                    color: Colors.white,
-                    size: 32,
-                  ),
+                ),
+                child: Icon(
+                  _isExpanded ? Icons.close : Icons.add,
+                  color: Colors.white,
+                  size: 32,
                 ),
               );
             },
