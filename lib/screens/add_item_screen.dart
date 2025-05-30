@@ -57,11 +57,8 @@ class _AddItemScreenState extends State<AddItemScreen>
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
-    if (_isVoiceMode) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _startListening();
-      });
-    }
+    // 음성 모드로 시작해도 자동으로 음성 인식을 시작하지 않음
+    // 사용자가 수동으로 "음성 인식 시작" 버튼을 눌러야 함
   }
 
   @override
@@ -72,6 +69,12 @@ class _AddItemScreenState extends State<AddItemScreen>
     _quantityController.dispose();
     _textFocusNode.dispose();
     _pulseController.dispose();
+
+    // 음성 인식 중이면 중지
+    if (_isListening) {
+      _speechService.stopListening();
+    }
+
     super.dispose();
   }
 
@@ -104,7 +107,6 @@ class _AddItemScreenState extends State<AddItemScreen>
       );
     } catch (e) {
       _showErrorSnackBar('음성 인식 중 오류가 발생했습니다: $e');
-    } finally {
       setState(() {
         _isListening = false;
       });
@@ -210,22 +212,39 @@ class _AddItemScreenState extends State<AddItemScreen>
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
-          IconButton(
-            icon: Icon(
-              _isVoiceMode ? Icons.keyboard : Icons.mic,
-              color: AppTheme.primary,
+          // 음성/텍스트 모드 전환 버튼
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            child: IconButton(
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color:
+                      _isVoiceMode
+                          ? AppTheme.secondary.withOpacity(0.2)
+                          : AppTheme.primary.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  _isVoiceMode ? Icons.keyboard : Icons.mic,
+                  color: _isVoiceMode ? AppTheme.secondary : AppTheme.primary,
+                  size: 20,
+                ),
+              ),
+              onPressed: () {
+                setState(() {
+                  _isVoiceMode = !_isVoiceMode;
+                });
+                if (_isVoiceMode) {
+                  // 음성 모드로 전환시 자동으로 음성 인식 시작하지 않음
+                  // 사용자가 수동으로 시작하도록 변경
+                } else {
+                  _stopListening();
+                  _textFocusNode.requestFocus();
+                }
+              },
+              tooltip: _isVoiceMode ? '텍스트 입력 모드로 전환' : '음성 입력 모드로 전환',
             ),
-            onPressed: () {
-              setState(() {
-                _isVoiceMode = !_isVoiceMode;
-              });
-              if (_isVoiceMode) {
-                _startListening();
-              } else {
-                _stopListening();
-                _textFocusNode.requestFocus();
-              }
-            },
           ),
         ],
       ),
@@ -236,6 +255,166 @@ class _AddItemScreenState extends State<AddItemScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // 음성 모드 표시 (더 눈에 띄게)
+              if (_isVoiceMode) ...[
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        AppTheme.secondary.withOpacity(0.1),
+                        AppTheme.primary.withOpacity(0.1),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: _isListening ? AppTheme.error : AppTheme.secondary,
+                      width: 2,
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (_isListening)
+                            AnimatedBuilder(
+                              animation: _pulseAnimation,
+                              builder: (context, child) {
+                                return Transform.scale(
+                                  scale: _pulseAnimation.value,
+                                  child: Container(
+                                    width: 60,
+                                    height: 60,
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.error.withOpacity(0.2),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: AppTheme.error,
+                                        width: 3,
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      Icons.mic,
+                                      color: AppTheme.error,
+                                      size: 30,
+                                    ),
+                                  ),
+                                );
+                              },
+                            )
+                          else
+                            Container(
+                              width: 60,
+                              height: 60,
+                              decoration: BoxDecoration(
+                                color: AppTheme.grey300,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: AppTheme.grey500,
+                                  width: 2,
+                                ),
+                              ),
+                              child: Icon(
+                                Icons.mic_off,
+                                color: AppTheme.grey600,
+                                size: 30,
+                              ),
+                            ),
+                          const SizedBox(width: 16),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _isListening ? '🎤 음성 인식 중...' : '🎤 음성 모드',
+                                style: Theme.of(
+                                  context,
+                                ).textTheme.titleLarge?.copyWith(
+                                  color:
+                                      _isListening
+                                          ? AppTheme.error
+                                          : AppTheme.secondary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _isListening
+                                    ? '말씀하세요. 종료하려면 정지 버튼을 누르세요.'
+                                    : '시작 버튼을 눌러 음성 인식을 시작하세요.',
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(color: AppTheme.grey600),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          ElevatedButton.icon(
+                            onPressed:
+                                _isListening ? _stopListening : _startListening,
+                            icon: Icon(
+                              _isListening ? Icons.stop : Icons.play_arrow,
+                              color: Colors.white,
+                            ),
+                            label: Text(
+                              _isListening ? '음성 인식 중지' : '음성 인식 시작',
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor:
+                                  _isListening
+                                      ? AppTheme.error
+                                      : AppTheme.secondary,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              setState(() {
+                                _isVoiceMode = false;
+                                if (_isListening) {
+                                  _stopListening();
+                                }
+                              });
+                              _textFocusNode.requestFocus();
+                            },
+                            icon: Icon(Icons.keyboard, color: AppTheme.primary),
+                            label: Text(
+                              '텍스트 모드',
+                              style: TextStyle(color: AppTheme.primary),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: AppTheme.primary),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
+
               // 입력 모드 표시
               Container(
                 padding: const EdgeInsets.all(16),

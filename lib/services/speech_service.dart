@@ -69,12 +69,12 @@ class SpeechService {
             onResult(_lastWords);
           }
         },
-        listenFor: const Duration(seconds: 10),
-        pauseFor: const Duration(seconds: 3),
+        listenFor: const Duration(minutes: 30), // 30분으로 확장 (거의 무제한)
+        pauseFor: const Duration(seconds: 10), // 긴 침묵 허용
         partialResults: true,
         localeId: localeId ?? 'ko_KR', // 기본값은 한국어
         onSoundLevelChange: _onSoundLevelChange,
-        cancelOnError: true,
+        cancelOnError: false, // 에러시에도 계속 유지
         listenMode: ListenMode.confirmation,
       );
 
