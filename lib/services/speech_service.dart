@@ -16,7 +16,8 @@ class SpeechService {
   double _confidenceLevel = 0.0;
   double _soundLevel = 0.0;
 
-  // 음성 레벨 콜백 함수
+  // 콜백 함수들
+  Function(String)? _onResultCallback;
   Function(double)? _soundLevelCallback;
 
   // Getter들
@@ -26,7 +27,7 @@ class SpeechService {
   double get confidenceLevel => _confidenceLevel;
   double get soundLevel => _soundLevel;
 
-  // 음성 인식 초기화 (웹 최적화)
+  // 음성 인식 초기화 (간단하고 안정적으로)
   Future<bool> initialize() async {
     try {
       if (_isInitialized) {
@@ -35,7 +36,7 @@ class SpeechService {
 
       print('🎤 음성 인식 초기화 시작...');
 
-      // 웹에서는 더 간단한 초기화
+      // 간단한 초기화
       final available = await _speechToText.initialize(
         onError: _onError,
         onStatus: _onStatus,
@@ -51,9 +52,6 @@ class SpeechService {
           try {
             final locales = await _speechToText.locales();
             print('📍 사용 가능한 로케일: ${locales.length}개');
-            for (var locale in locales.take(3)) {
-              print('  - ${locale.localeId}: ${locale.name}');
-            }
           } catch (e) {
             print('⚠️ 로케일 확인 실패: $e');
           }
@@ -69,7 +67,7 @@ class SpeechService {
     }
   }
 
-  // 음성 인식 시작 (웹 안정성 최우선)
+  // 음성 인식 시작 (안정성 강화)
   Future<void> startListening({
     required Function(String) onResult,
     Function(double)? onSoundLevel,
@@ -81,23 +79,23 @@ class SpeechService {
       print('🔄 초기화되지 않음 - 재초기화 시도');
       final initialized = await initialize();
       if (!initialized) {
-        throw Exception('음성 인식을 초기화할 수 없습니다.');
+        throw Exception('음성 인식을 초기화할 수 없습니다');
       }
     }
 
-    // 이미 실행 중이면 완전히 정리
+    // 이미 실행 중이면 완전히 정지
     if (_isListening) {
-      print('⚠️ 이미 음성인식 실행 중 - 강제 정리');
-      await _completeReset();
+      print('⚠️ 이미 음성인식 실행 중 - 완전 정지 후 재시작');
+      await _forceStop();
     }
 
-    // 음성 레벨 콜백 설정
+    _onResultCallback = onResult;
     _soundLevelCallback = onSoundLevel;
 
     try {
       print('🚀 음성 인식 시작 중...');
 
-      // 웹에서 더 안전한 설정
+      // 웹에서 안정적인 설정
       final success = await _speechToText.listen(
         onResult: (result) {
           _lastWords = result.recognizedWords;
@@ -107,14 +105,21 @@ class SpeechService {
               '💬 인식 결과: "${result.recognizedWords}" (신뢰도: ${(result.confidence * 100).toStringAsFixed(1)}%)');
 
           // 실시간 결과 전달
-          onResult(_lastWords);
+          if (_onResultCallback != null) {
+            _onResultCallback!(_lastWords);
+          }
         },
-        listenFor: const Duration(minutes: 2), // 웹에서는 짧게
-        pauseFor: const Duration(seconds: 2), // 웹에서는 짧게
+        listenFor: const Duration(seconds: 30), // 웹에서는 더 짧게 (30초)
+        pauseFor: const Duration(seconds: 1), // 웹에서는 더 짧게 (1초)
         partialResults: true,
         localeId: localeId ?? 'ko_KR',
-        onSoundLevelChange: _handleSoundLevelChange,
-        cancelOnError: true, // 웹에서는 에러 시 자동 취소
+        onSoundLevelChange: (level) {
+          _soundLevel = level;
+          if (_soundLevelCallback != null) {
+            _soundLevelCallback!(level);
+          }
+        },
+        cancelOnError: true, // 에러 시 자동 취소
         listenMode: ListenMode.confirmation,
       );
 
@@ -122,105 +127,77 @@ class SpeechService {
         _isListening = true;
         print('✅ 음성 인식 시작 성공');
       } else {
-        print('❌ 음성 인식 시작 실패 - listen() 반환값 false');
-        throw Exception('음성 인식 세션을 시작할 수 없습니다.');
+        print('❌ 음성 인식 시작 실패');
+        throw Exception('음성 인식을 시작할 수 없습니다');
       }
     } catch (e) {
       print('🚨 음성 인식 시작 실패: $e');
       _isListening = false;
-      await _completeReset();
-
-      // 사용자가 이해하기 쉬운 에러 메시지
-      String userMessage = '음성 인식을 시작할 수 없습니다';
-      if (e.toString().contains('permission')) {
-        userMessage = '마이크 권한이 필요합니다. 브라우저에서 마이크 사용을 허용해주세요';
-      } else if (e.toString().contains('network')) {
-        userMessage = '네트워크 연결을 확인해주세요';
-      } else if (e.toString().contains('already started')) {
-        userMessage = '잠시 후 다시 시도해주세요';
-      }
-
-      throw Exception(userMessage);
+      throw Exception(_getErrorMessage(e.toString()));
     }
   }
 
   // 음성 인식 중지
   Future<void> stopListening() async {
-    if (_isListening) {
-      print('🛑 음성 인식 중지...');
-      try {
-        await _speechToText.stop();
-        print('✅ 음성 인식 중지 완료');
-      } catch (e) {
-        print('⚠️ 음성 인식 중지 중 오류: $e');
-      }
+    if (!_isListening) return;
+
+    print('🛑 음성 인식 중지...');
+
+    try {
+      await _speechToText.stop();
+      print('✅ 음성 인식 중지 완료');
+    } catch (e) {
+      print('⚠️ 음성 인식 중지 중 오류: $e');
+    } finally {
       _isListening = false;
     }
   }
 
   // 음성 인식 취소
   Future<void> cancelListening() async {
-    if (_isListening) {
-      print('❌ 음성 인식 취소...');
-      try {
-        await _speechToText.cancel();
-        print('✅ 음성 인식 취소 완료');
-      } catch (e) {
-        print('⚠️ 음성 인식 취소 중 오류: $e');
-      }
+    if (!_isListening) return;
+
+    print('❌ 음성 인식 취소...');
+
+    try {
+      await _speechToText.cancel();
+      print('✅ 음성 인식 취소 완료');
+    } catch (e) {
+      print('⚠️ 음성 인식 취소 중 오류: $e');
+    } finally {
       _isListening = false;
       _lastWords = '';
       _confidenceLevel = 0.0;
     }
   }
 
-  // 완전한 리셋 (웹 안정성용)
-  Future<void> _completeReset() async {
-    print('🔄 음성 인식 완전 리셋...');
-    try {
-      // 모든 종료 방법 시도
-      if (_speechToText.isListening) {
-        await _speechToText.cancel();
-        await Future.delayed(const Duration(milliseconds: 100));
-        await _speechToText.stop();
-      }
+  // 강제 정지 (웹 안정성용)
+  Future<void> _forceStop() async {
+    print('🔄 음성 인식 강제 정지...');
 
-      // 충분한 대기 시간
-      await Future.delayed(const Duration(milliseconds: 800));
+    try {
+      // 모든 정지 방법 시도
+      await _speechToText.cancel();
+      await Future.delayed(const Duration(milliseconds: 200));
+      await _speechToText.stop();
+      await Future.delayed(const Duration(milliseconds: 500)); // 웹에서는 충분한 대기
     } catch (e) {
-      print('⚠️ 리셋 중 오류 (무시됨): $e');
+      print('⚠️ 강제 정지 중 오류 (무시됨): $e');
     } finally {
       _isListening = false;
       _lastWords = '';
       _confidenceLevel = 0.0;
       _soundLevel = 0.0;
-      print('✅ 리셋 완료');
+      print('✅ 강제 정지 완료');
     }
   }
 
-  // 강제 정리 (웹에서 상태 불일치 해결용)
-  Future<void> forceStop() async {
-    await _completeReset();
-  }
-
-  // 사용 가능한 로케일 목록 조회
-  Future<List<LocaleName>> getAvailableLocales() async {
-    if (!_isInitialized) {
-      await initialize();
-    }
-    return await _speechToText.locales();
-  }
-
-  // 음성 인식 사용 가능 여부 확인 (개선된 버전)
+  // 사용 가능 여부 확인
   Future<bool> isAvailable() async {
     try {
-      // 초기화되지 않았으면 초기화 시도
       if (!_isInitialized) {
-        final available = await initialize();
-        return available && _speechToText.isAvailable;
+        return await initialize();
       }
-
-      // 이미 초기화되어 있으면 바로 확인
       return _speechToText.isAvailable;
     } catch (e) {
       print('🚨 음성 인식 사용 가능 여부 확인 실패: $e');
@@ -228,20 +205,59 @@ class SpeechService {
     }
   }
 
-  // 텍스트를 구매 목록으로 파싱 (띄어쓰기 기준으로 분리)
+  // 에러 메시지 생성
+  String _getErrorMessage(String error) {
+    if (error.contains('permission') || error.contains('not-allowed')) {
+      return '마이크 권한이 필요합니다. 브라우저에서 마이크 사용을 허용해주세요';
+    } else if (error.contains('network')) {
+      return '네트워크 연결을 확인해주세요';
+    } else if (error.contains('no-speech')) {
+      return '음성이 감지되지 않았습니다. 마이크 가까이에서 다시 시도해주세요';
+    } else if (error.contains('audio-capture')) {
+      return '마이크에 문제가 있습니다. 마이크 연결을 확인해주세요';
+    } else if (error.contains('already')) {
+      return '잠시 후 다시 시도해주세요';
+    } else {
+      return '음성 인식을 사용할 수 없습니다. 브라우저 설정을 확인해주세요';
+    }
+  }
+
+  // 에러 핸들링
+  void _onError(SpeechRecognitionError error) {
+    print('🚨 음성 인식 에러: ${error.errorMsg} (영구: ${error.permanent})');
+    _isListening = false;
+
+    // 영구적인 에러면 초기화 상태 리셋
+    if (error.permanent) {
+      _isInitialized = false;
+    }
+  }
+
+  // 상태 변경 핸들링
+  void _onStatus(String status) {
+    print('📊 음성 인식 상태: $status');
+
+    switch (status) {
+      case 'listening':
+        _isListening = true;
+        break;
+      case 'notListening':
+      case 'done':
+        _isListening = false;
+        break;
+    }
+  }
+
+  // 텍스트 파싱
   List<String> parseShoppingItems(String text) {
     if (text.isEmpty) return [];
 
-    // 텍스트 정제
-    String cleanedText = text.trim();
-
-    // 특수 문자 제거 및 정제
-    cleanedText = cleanedText
-        .replaceAll(RegExp(r'[.,!?;:]'), ' ') // 특수 문자를 공백으로 대체
-        .replaceAll(RegExp(r'\s+'), ' ') // 연속된 공백을 하나로 합치기
+    String cleanedText = text
+        .trim()
+        .replaceAll(RegExp(r'[.,!?;:]'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
 
-    // 띄어쓰기로 분리
     List<String> items = cleanedText
         .split(' ')
         .where((item) => item.isNotEmpty)
@@ -249,7 +265,6 @@ class SpeechService {
         .where((item) => item.length > 0)
         .toList();
 
-    // 중복 제거
     return items.toSet().toList();
   }
 
@@ -299,42 +314,6 @@ class SpeechService {
 
       return item;
     }).toList();
-  }
-
-  // 에러 핸들링
-  void _onError(SpeechRecognitionError error) {
-    print('🚨 음성 인식 에러: ${error.errorMsg} (영구: ${error.permanent})');
-    _isListening = false;
-
-    // 영구적인 에러면 초기화 상태 리셋
-    if (error.permanent) {
-      _isInitialized = false;
-    }
-  }
-
-  // 상태 변경 핸들링
-  void _onStatus(String status) {
-    print('📊 음성 인식 상태: $status');
-
-    switch (status) {
-      case 'listening':
-        _isListening = true;
-        break;
-      case 'notListening':
-      case 'done':
-        _isListening = false;
-        break;
-    }
-  }
-
-  // 음성 레벨 변경 핸들링
-  void _handleSoundLevelChange(double level) {
-    _soundLevel = level;
-
-    // 등록된 콜백이 있으면 호출
-    if (_soundLevelCallback != null) {
-      _soundLevelCallback!(level);
-    }
   }
 
   // 리소스 정리

@@ -103,7 +103,7 @@ class _AddItemModalState extends State<AddItemModal>
       if (_isListening) {
         print('⚠️ AddItemModal: 이미 음성인식이 진행 중입니다. 먼저 중지합니다.');
         _stopListening();
-        await Future.delayed(const Duration(milliseconds: 500));
+        await Future.delayed(const Duration(milliseconds: 300));
       }
 
       // 음성 서비스 사용 가능 여부 확인
@@ -115,9 +115,11 @@ class _AddItemModalState extends State<AddItemModal>
       }
 
       // UI 상태 업데이트
-      setState(() {
-        _isListening = true;
-      });
+      if (mounted) {
+        setState(() {
+          _isListening = true;
+        });
+      }
 
       _pulseController.repeat(reverse: true);
 
@@ -147,23 +149,10 @@ class _AddItemModalState extends State<AddItemModal>
     } catch (e) {
       print('🚨 AddItemModal: 음성인식 시작 실패: $e');
 
-      // 에러 메시지 개선
-      String errorMessage = '음성 인식 중 오류가 발생했습니다';
+      // 에러 메시지 표시
+      _showErrorSnackBar(e.toString());
 
-      if (e.toString().contains('마이크 권한')) {
-        errorMessage =
-            '🎤 마이크 권한이 필요합니다\n\n브라우저 주소창 옆의 마이크 아이콘을 클릭하여\n마이크 사용을 허용해주세요';
-      } else if (e.toString().contains('네트워크')) {
-        errorMessage = '🌐 네트워크 연결을 확인해주세요\n\n음성 인식은 인터넷 연결이 필요합니다';
-      } else if (e.toString().contains('잠시 후')) {
-        errorMessage = '⏰ 잠시 후 다시 시도해주세요\n\n음성 인식 서비스가 일시적으로\n사용 중일 수 있습니다';
-      } else {
-        errorMessage =
-            '🚫 음성 인식을 사용할 수 없습니다\n\n• 마이크가 연결되어 있는지 확인\n• 다른 앱에서 마이크를 사용 중인지 확인\n• 브라우저를 새로고침 후 재시도';
-      }
-
-      _showErrorSnackBar(errorMessage);
-
+      // UI 상태 복원
       if (mounted) {
         setState(() {
           _isListening = false;
@@ -174,10 +163,11 @@ class _AddItemModalState extends State<AddItemModal>
     }
   }
 
-  void _stopListening() {
+  void _stopListening() async {
     print('AddItemModal: 음성인식 중지 시작');
+
     try {
-      _speechService.stopListening();
+      await _speechService.stopListening();
     } catch (e) {
       print('AddItemModal: 음성인식 중지 중 오류: $e');
     }
